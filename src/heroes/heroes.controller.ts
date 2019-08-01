@@ -6,8 +6,9 @@ export class HeroesController {
     constructor(private readonly heroesService: HeroesService) {}
 
     @Get()
-    getAllHeroes() {
-        return this.heroesService.getHeroes();
+    async getAllHeroes() {
+        const heroes = await this.heroesService.getHeroes();
+        return heroes;
     }
 
     @Get(':id')
@@ -16,12 +17,12 @@ export class HeroesController {
     }
 
     @Post()
-    createHero(
+    async createHero(
         @Body('name') heroName: string,
         @Body('age') heroAge: number,
         @Body('rating') heroRating: number,
-    ): any {
-        const generatedId =  this.heroesService.insertHero(
+    ) {
+        const generatedId = await this.heroesService.insertHero(
             heroName,
             heroAge,
             heroRating,
@@ -30,18 +31,18 @@ export class HeroesController {
     }
 
     @Patch(':id')
-    updateHero(
+    async updateHero(
         @Param('id') heroId: string,
         @Body('name') heroName: string,
         @Body('age') heroAge: number,
         @Body('rating') heroRating: number,
     ) {
-        this.heroesService.updateHero(heroId, heroName, heroAge, heroRating);
+        await this.heroesService.updateHero(heroId, heroName, heroAge, heroRating);
         return null;
     }
 
     @Delete(':id')
-    deleteHero(@Param('id') heroId: string) {
-        this.heroesService.deleteHero(heroId);
+    async deleteHero(@Param('id') heroId: string) {
+        await this.heroesService.deleteHero(heroId);
     }
 }

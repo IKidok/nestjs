@@ -1,28 +1,38 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Hero } from './model/heroes.model';
+import {InjectModel} from '@nestjs/mongoose';
+import { Model} from 'mongoose';
+import runAllTicks = jest.runAllTicks;
 
 @Injectable()
 export class HeroesService {
-    heroes: Hero[] = [];
+    private heroes: Hero[] = [];
 
-    insertHero(name: string, age: number, rating: number): string {
-        const heroId = Math.random().toString();
-        const newHero = new Hero(heroId, name, age, rating);
-        this.heroes.push(newHero);
-        return heroId;
+    constructor(@InjectModel('Hero') private readonly heroModel: Model<Hero>) {}
+
+    async insertHero(name: string, age: number, rating: number) {
+        const newHero = new this.heroModel({name, age, rating});
+        const result = await newHero.save();
+        return result.id as string;
     }
 
-    getHeroes() {
-        return [...this.heroes];
+    async getHeroes() {
+        const heroes = await this.heroModel.find().exec();
+        return heroes.map(hero => ({ id: hero.id, name: hero.name, age: hero.age, rating: hero.rating}));
     }
 
-    getHero(heroId) {
-        return {...this.findHero(heroId)[0]};
+     async getHero(heroId: string) {
+        const hero = await this.findHero(heroId);
+        return {
+             id: hero.id,
+             name: hero.name,
+             age: hero.age,
+             rating: hero.rating,
+        };
     }
 
-    updateHero(heroId: string, name: string, age: number, rating: number) {
-        const [hero, index] = this.findHero(heroId);
-        const updatedHero = {...hero};
+    async updateHero(heroId: string, name: string, age: number, rating: number) {
+        const updatedHero = await this.findHero(heroId);
         if (name) {
             updatedHero.name = name;
         }
@@ -32,20 +42,26 @@ export class HeroesService {
         if (rating) {
             updatedHero.rating = rating;
         }
-        this.heroes[index] = updatedHero;
+        updatedHero.save();
     }
 
-    deleteHero(heroId: string) {
-        const heroIndex = this.findHero(heroId)[1];
-        this.heroes.splice(heroIndex, 1);
+    async deleteHero(heroId: string) {
+       const result =  await this.heroModel.deleteOne({_id: heroId}).exec();
+       if (result.n === 0 ) {
+           throw new NotFoundException('Could not found hero');
+       }
     }
 
-    private findHero(id: string): [Hero, number] {
-        const heroIndex = this.heroes.findIndex(currentHero => currentHero.id === id);
-        const hero = this.heroes[heroIndex];
+    private async findHero(id: string): Promise<Hero> {
+        let hero;
+        try {
+            hero = await this.heroModel.findById(id);
+        } catch (error) {
+            throw new NotFoundException('Could not found hero.')
+        }
         if (!hero) {
             throw new NotFoundException('Could not find hero');
         }
-        return [hero, heroIndex];
+        return hero;
     }
 }
